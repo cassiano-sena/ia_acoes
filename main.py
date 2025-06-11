@@ -1,12 +1,24 @@
 import csv
 import random
+import time
 
+# PROPOSTA:
+# calcular a alocação de ações dia a dia que gere a maior lucratividade
+# divide o valor investido em 10 potes
+# cada pote é investido em uma ação
+# compra um dia e vende no próximo
+
+# IMPORTANTE:
+# quanto mais gerações e maior taxa de mutação, maior probabilidade de melhores individuos (mais demorado e mais resource intensive)
+# selecionar a elite e criar a próxima população a partir deles
+ 
 POPULACAO_INICIAL = 100
 GERACOES = 50
 TAXA_MUTACAO = 0.05
 ELITE = 5
 acoes_csv = "cotacoes_b3_202_05.csv"
 
+# dataset
 def carregar_dados_csv(caminho_csv):
     dados_brutos = []
     acoes_validas = set()
@@ -20,6 +32,7 @@ def carregar_dados_csv(caminho_csv):
             codigo = codigo.strip()
             if len(codigo) != 5:
                 continue
+            # troca virgula dos valoers por ponto
             try:
                 preco = float(preco.replace(',', '.'))
             except ValueError:
@@ -37,18 +50,24 @@ def carregar_dados_csv(caminho_csv):
 
     return dados_cotacoes, list(acoes_validas)
 
+# 1 individuo = 12 pares de dias
+# cada par = 10 potes
+# 1 porte = 1 acao aleatorai
 def gerar_individuo(acoes_disponiveis):
     return [[random.choice(acoes_disponiveis) for _ in range(10)] for _ in range(12)]
 
+# gera uma população de tamanho POPULACAO_INICIAL
 def gerar_populacao(tamanho, acoes_disponiveis):
     return [gerar_individuo(acoes_disponiveis) for _ in range(tamanho)]
 
+# seleciona os melhores a partir do valor da variavel ELITE
 def selecionar_melhores(populacao, dados_cotacoes, quantidade):
     avaliacoes = [(avaliar_dna(ind, dados_cotacoes), ind) for ind in populacao]
     avaliacoes.sort(reverse=True, key=lambda x: x[0])
     melhores = [ind for _, ind in avaliacoes[:quantidade]]
     return melhores, avaliacoes[0][0]  # Retorna os melhores + valor do melhor
 
+# fazer o crossover entre duas entidades, retornar entidade filho
 def crossover(pai1, pai2):
     filho = []
     for dia in range(len(pai1)):
@@ -61,12 +80,20 @@ def crossover(pai1, pai2):
         filho.append(genes)
     return filho
 
+# fazer mutação aleatoriamente a partir de TAXA_MUTACAO
 def mutar(dna, acoes_disponiveis, taxa_mutacao):
+    mutacoes = 0
     for dia in range(len(dna)):
         for pote in range(10):
             if random.random() < taxa_mutacao:
                 dna[dia][pote] = random.choice(acoes_disponiveis)
+                mutacoes += 1
+    return mutacoes
 
+# divide o dinheiro em 10 potes iguais
+# compra um dia x, vende em x + 1
+# calcula o valor final
+# soma os potes -> valor da proxima rodada
 def avaliar_dna(dna, dados_cotacoes):
     valor_total = 1000.0
     total_dias = len(dados_cotacoes)
@@ -90,22 +117,40 @@ def avaliar_dna(dna, dados_cotacoes):
 
     return valor_total
 
+# main
 def algoritmo_genetico(dados_cotacoes, acoes_disponiveis):
     populacao = gerar_populacao(POPULACAO_INICIAL, acoes_disponiveis)
 
     for geracao in range(GERACOES):
+        inicio_geracao = time.time()
+
+        # melhores, melhor_valor = selecionar_melhores(populacao, dados_cotacoes, ELITE)
         melhores, melhor_valor = selecionar_melhores(populacao, dados_cotacoes, ELITE)
 
+        print(f"\nTop {ELITE} da Geração {geracao + 1}:")
+        for idx, elite in enumerate(melhores):
+            valor = avaliar_dna(elite, dados_cotacoes)
+            print(f"  {idx+1}º - Valor: R$ {valor:.2f}")
+
+
         nova_populacao = melhores.copy()
+        total_mutacoes = 0
 
         while len(nova_populacao) < POPULACAO_INICIAL:
             pai1, pai2 = random.sample(melhores, 2)
             filho = crossover(pai1, pai2)
-            mutar(filho, acoes_disponiveis, TAXA_MUTACAO)
+            mutacoes = mutar(filho, acoes_disponiveis, TAXA_MUTACAO)
+            total_mutacoes += mutacoes
             nova_populacao.append(filho)
 
         populacao = nova_populacao
-        print(f"Geração {geracao + 1} - Melhor valor: R$ {melhor_valor:.2f}")
+
+        # Calcula média da população
+        valores_pop = [avaliar_dna(ind, dados_cotacoes) for ind in populacao]
+        media_valores = sum(valores_pop) / len(valores_pop)
+        tempo = time.time() - inicio_geracao
+
+        print(f"Geração {geracao + 1} | Melhor: R$ {melhor_valor:.2f} | Média: R$ {media_valores:.2f} | Mutações: {total_mutacoes} | {tempo:.2f}s")
 
     melhores, melhor_valor = selecionar_melhores(populacao, dados_cotacoes, 1)
     return melhores[0], melhor_valor
