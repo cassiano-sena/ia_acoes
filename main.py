@@ -16,6 +16,8 @@ POPULACAO_INICIAL = 100
 GERACOES = 50
 TAXA_MUTACAO = 0.05
 ELITE = 5
+VALOR_INICIAL = 1000.0
+
 acoes_csv = "cotacoes_b3_202_05.csv"
 
 # dataset
@@ -95,7 +97,7 @@ def mutar(dna, acoes_disponiveis, taxa_mutacao):
 # calcula o valor final
 # soma os potes -> valor da proxima rodada
 def avaliar_dna(dna, dados_cotacoes):
-    valor_total = 1000.0
+    valor_total = VALOR_INICIAL
     total_dias = len(dados_cotacoes)
     max_pares = min(len(dna), (total_dias - 1) // 2)
 
@@ -162,4 +164,4 @@ if __name__ == "__main__":
     print("\nMelhor DNA encontrado:")
     for i, dia in enumerate(melhor_dna):
         print(f"Dia {i+1}: {dia}")
-    print(f"\nValor final: R$ {valor_final:.2f}")
+    print(f"\nValor final: R$ {valor_final:.2f}\n")
